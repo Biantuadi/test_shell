@@ -1,0 +1,58 @@
+# Exemples de commandes pour FakeShell
+
+# 1. Commande tree
+tree
+
+# 2. Commande sort
+# Créer un fichier de test
+echo "zebra
+apple
+banana
+cherry" > test.txt
+# Trier le fichier
+sort test.txt
+
+# 3. Commande alias
+# Créer un alias pour ls -l
+alias ll="ls -l"
+# Voir tous les alias
+alias
+# Utiliser l'alias
+ll
+
+# 4. Commande ps
+ps
+
+# 5. Commande history
+# Exécuter quelques commandes
+ls
+pwd
+# Voir l'historique
+history
+
+# 6. Commande calc
+calc 2 + 2
+calc 10 * 5
+calc "2 + 2 * 3"
+
+# 7. Opérateurs && et ||
+# Exemple avec &&
+ls && pwd
+# Exemple avec ||
+invalid_command || echo "La commande précédente a échoué"
+# Combinaison
+ls && echo "Succès" || echo "Échec"
+
+.
+├── src
+│   ├── commands
+│   │   └── index.js (1234 bytes, modifié le 01/01/2024)
+│   ├── shell.js (567 bytes, modifié le 01/01/2024)
+│   └── utils
+│       └── exec.js (89 bytes, modifié le 01/01/2024)
+├── package.json (234 bytes, modifié le 01/01/2024)
+└── test-commands.txt (456 bytes, modifié le 01/01/2024) 
+
+ls && pwd                    # Exécute pwd seulement si ls réussit
+invalid_command || echo "Erreur"  # Affiche "Erreur" si la commande échoue
+ls && echo "Succès" || echo "Échec"  # Affiche "Succès" si ls réussit, sinon "Échec"

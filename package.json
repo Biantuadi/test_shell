@@ -1,0 +1,22 @@
+{
+  "name": "test_shell",
+  "version": "1.0.0",
+  "main": "src/shell.js",
+  "scripts": {
+    "start": "node src/shell.js",
+    "test": "mocha test/shell.test.mjs"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "chai": "^5.2.0",
+    "mocha": "^11.4.0"
+  },
+  "devDependencies": {
+    "sinon": "^20.0.0",
+    "sinon-chai": "^4.0.0"
+  }
+}
