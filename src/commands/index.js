@@ -1,6 +1,7 @@
 import { execAsync } from '../utils/exec.js';
 import fs from 'fs';
 import path from 'path';
+import Big from 'big.js';
 
 // Store command history
 const history = [];
@@ -291,6 +292,12 @@ alias(args) {
     // Calculator command
     calc(expression) {
         try {
+            // Vérification de base de l'entrée
+            if (!expression || !Array.isArray(expression)) {
+                console.error('Error: Invalid input format');
+                return;
+            }
+
             if (expression.length === 0) {
                 console.error('Usage: calc <expression>');
                 console.error('Example: calc 2 + 2');
@@ -298,23 +305,115 @@ alias(args) {
                 return;
             }
 
+            // Protection contre les entrées trop longues
+            const MAX_INPUT_LENGTH = 10000;
+            const MAX_NUMBER_LENGTH = 1000;
+            
             // Join the expression and remove any extra spaces
             let expr = expression.join(' ').replace(/\s+/g, ' ').trim();
             
-            // Replace ^ with ** for power operation
-            expr = expr.replace(/\^/g, '**');
-            
-            // Validate the expression
-            if (!/^[\d\s+\-*\/%()^]+$/.test(expr)) {
-                console.error('Invalid expression. Only numbers and basic operators are allowed.');
+            // Vérification de la longueur totale
+            if (expr.length > MAX_INPUT_LENGTH) {
+                console.error(`Error: Input is too long (${expr.length} characters). Maximum length is ${MAX_INPUT_LENGTH} characters.`);
                 return;
             }
 
-            // Calculate the result
-            const result = eval(expr);
+            // Vérification des caractères valides
+            if (!/^[\d\s+\-*\/%()^]+$/.test(expr)) {
+                console.error('Error: Input contains invalid characters. Only numbers and operators (+, -, *, /, %, ^) are allowed.');
+                return;
+            }
+
+            // Replace ^ with ** for power operation
+            expr = expr.replace(/\^/g, '**');
+
+            // Split the expression into tokens and validate each token
+            const tokens = expr.match(/(\d+|[+\-*/%()])/g) || [];
             
-            // Format the output
-            console.log(`${expr} = ${result}`);
+            // Vérification de la structure de base
+            if (tokens.length < 3) {
+                console.error('Error: Expression must contain at least two numbers and an operator');
+                return;
+            }
+
+            // Vérification des nombres
+            for (const token of tokens) {
+                if (/^\d+$/.test(token)) {
+                    if (token.length > MAX_NUMBER_LENGTH) {
+                        console.error(`Error: Number is too long (${token.length} digits). Maximum length is ${MAX_NUMBER_LENGTH} digits.`);
+                        return;
+                    }
+                }
+            }
+            
+            try {
+                // Convert all numbers to Big.js objects
+                const bigTokens = tokens.map(token => {
+                    if (/^\d+$/.test(token)) {
+                        return new Big(token);
+                    }
+                    return token;
+                });
+
+                // Evaluate the expression
+                let result = bigTokens[0];
+                for (let i = 1; i < bigTokens.length; i += 2) {
+                    const operator = bigTokens[i];
+                    const operand = bigTokens[i + 1];
+                    
+                    if (!operand) {
+                        console.error('Error: Invalid expression format - missing operand');
+                        return;
+                    }
+                    
+                    try {
+                        switch (operator) {
+                            case '+':
+                                result = result.plus(operand);
+                                break;
+                            case '-':
+                                result = result.minus(operand);
+                                break;
+                            case '*':
+                                result = result.times(operand);
+                                break;
+                            case '/':
+                                if (operand.toString() === '0') {
+                                    console.error('Error: Division by zero');
+                                    return;
+                                }
+                                result = result.div(operand);
+                                break;
+                            case '%':
+                                if (operand.toString() === '0') {
+                                    console.error('Error: Modulo by zero');
+                                    return;
+                                }
+                                result = result.mod(operand);
+                                break;
+                            case '**':
+                                // Protection contre les exposants trop grands
+                                if (operand.gt(1000)) {
+                                    console.error('Error: Exponent too large (maximum 1000)');
+                                    return;
+                                }
+                                result = result.pow(operand);
+                                break;
+                            default:
+                                console.error(`Error: Invalid operator: ${operator}`);
+                                return;
+                        }
+                    } catch (opError) {
+                        console.error(`Error in operation ${operator}: ${opError.message}`);
+                        return;
+                    }
+                }
+                
+                // Format the output
+                console.log(`${expr} = ${result.toString()}`);
+            } catch (bigError) {
+                console.error('Error in calculation:', bigError.message);
+            }
         } catch (error) {
             console.error('Error in calculation:', error.message);
         }

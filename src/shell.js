@@ -1,66 +1,58 @@
-// const readline = require('readline');
-// const { execAsync } = require('./utils/exec');
-// const { commands, history, aliases, expandHistory } = require('./commands');
-
-import readline from 'readline';
 import { execAsync } from './utils/exec.js';
 import { commands, history, aliases, expandHistory } from './commands/index.js';
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
+const MAX_INPUT_LENGTH = 10000;
+let inputBuffer = '';
+let isProcessing = false;
+
+// Configuration de l'entrée standard
+process.stdin.setEncoding('utf8');
+process.stdin.setMaxListeners(1);
+
+// Gestionnaire d'entrée avec buffer
+process.stdin.on('data', (chunk) => {
+    if (isProcessing) return;
+    
+    inputBuffer += chunk;
+    
+    // Vérifier si l'entrée est trop longue
+    if (inputBuffer.length > MAX_INPUT_LENGTH) {
+        console.error(`Error: Input is too long (${inputBuffer.length} characters). Maximum length is ${MAX_INPUT_LENGTH} characters.`);
+        inputBuffer = '';
+        return;
+    }
+    
+    // Vérifier si nous avons une ligne complète
+    if (inputBuffer.includes('\n')) {
+        isProcessing = true;
+        const lines = inputBuffer.split('\n');
+        inputBuffer = lines.pop() || ''; // Garder la dernière ligne incomplète
+        
+        for (const line of lines) {
+            if (line.trim()) {
+                processCommand(line.trim());
+            }
+        }
+        isProcessing = false;
+    }
 });
 
-export async function executeCommandString(input) {
-    const expandedInput = expandHistory(input);
-    const parts = expandedInput.split(/(&&|\|\|)/).map(p => p.trim());
+// Gestion des signaux
+process.on('SIGINT', () => {
+    console.log('\nExiting...');
+    process.exit(0);
+});
 
-    let lastSuccess = true;
+process.on('SIGTERM', () => {
+    console.log('\nExiting...');
+    process.exit(0);
+});
 
-    for (let i = 0; i < parts.length; i += 2) {
-        const part = parts[i];
-        const operator = i > 0 ? parts[i - 1] : null;
-
-        // Gérer les opérateurs logiques
-        if (operator === '&&' && !lastSuccess) {
-            // Skip si la précédente a échoué
-            break;
-        }
-        if (operator === '||' && lastSuccess) {
-            // Skip si la précédente a réussi
-            break;
-        }
-
-        const [cmd, ...args] = part.split(' ');
-        const actualCommand = aliases.has(cmd) ? aliases.get(cmd) : cmd;
-
-        try {
-            if (commands[actualCommand]) {
-                await commands[actualCommand](args);
-            } else {
-                const { stdout } = await execAsync(part);
-                console.log(stdout);
-            }
-            lastSuccess = true;
-        } catch (error) {
-            lastSuccess = false;
-        }
-    }
-
-    return lastSuccess;
-}
-
-
-
-// Main shell loop
-async function startShell() {
-    while (true) {
-        const input = await new Promise(resolve => {
-            rl.question('fakeshell> ', resolve);
-        });
-
+// Fonction pour traiter une commande
+async function processCommand(input) {
+    try {
         if (input.toLowerCase() === 'exit') {
-            break;
+            process.exit(0);
         }
 
         // Expand history references
@@ -107,33 +99,35 @@ async function startShell() {
                     break;
                 }
             }
-            continue;
+            return;
         }
 
         // Execute command
-        try {
-            if (commands[actualCommand]) {
-                await commands[actualCommand](args);
-            } else {
-                // Try to execute as system command
-                try {
-                    const { stdout } = await execAsync(expandedInput);
-                    console.log(stdout);
-                } catch (error) {
-                    console.error(`Commande inconnue : ${cmd}`);
-                    console.log('Utilisez "help" pour voir la liste des commandes disponibles.');
-                }
+        if (commands[actualCommand]) {
+            await commands[actualCommand](args);
+        } else {
+            // Try to execute as system command
+            try {
+                const { stdout } = await execAsync(expandedInput);
+                console.log(stdout);
+            } catch (error) {
+                console.error(`Commande inconnue : ${cmd}`);
+                console.log('Utilisez "help" pour voir la liste des commandes disponibles.');
             }
-        } catch (error) {
-            console.error(`Error executing command: ${error.message}`);
         }
+    } catch (error) {
+        console.error(`Error executing command: ${error.message}`);
     }
-
-    rl.close();
 }
 
-console.log('Welcome to FakeShell!');
-console.log('Available commands: tree, sort, alias, ps, history, calc, help');
-console.log('Type "help" for more information');
-console.log('Type "exit" to quit');
+// Fonction pour démarrer le shell
+function startShell() {
+    console.log('Welcome to FakeShell!');
+    console.log('Available commands: tree, sort, alias, ps, history, calc, help');
+    console.log('Type "help" for more information');
+    console.log('Type "exit" to quit');
+    console.log('fakeshell> ');
+}
+
+// Démarrer le shell
 startShell();
